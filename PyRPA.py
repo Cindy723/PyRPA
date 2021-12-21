@@ -109,7 +109,7 @@ def resource_path(relative_path):
 def Analysis(PicName, location):
     def Filter():
         if PicName == 'None':
-            mylog('!!当前模式不支持立即点击,或在Excel中输入图片名')
+            mylog('当前模式不支持位置操作,或在Excel中输入图片名')
             return False
         else:
             return True
@@ -170,7 +170,8 @@ def Analysis(PicName, location):
             elif len(Split) == 3:
                 pyautogui.hotkey(Split[0], Split[1], Split[2])
         elif NowRowKey[local] == '命令':
-            subprocess.Popen(NowRowValue[local], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            os.system(str(NowRowValue[local]))
+            # subprocess.Popen(NowRowValue[local], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             # return proc.stdout.read().decode()
             # res = os.popen(NowRowValue[local])
             # output_str = res.read()
