@@ -21,6 +21,7 @@ import glob2
 # from win10toast import ToastNotifier
 import shutil
 import base64
+import win32api
 
 '''
 同样的，先安装python环境
@@ -39,6 +40,7 @@ pywin32
 tkinter
 glob2 
 keyboard 
+win32api
 如果还提示缺少其它库 安装即可
 建议使用虚拟环境 打包也在虚拟环境进行 这样不用在系统里也装一遍库
 '''
@@ -102,6 +104,15 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+#  @ 功能：调用系统命令的线程
+#  @ 参数：[I] : InputCmd 输入的参数
+#  @ 备注：针对后面在"命令"更换subprocess.Popen后控制台版本正常 但是普通版本报错的问题
+def threadSysCMD(InputCmd):
+    mylog('调用系统CMD 执行系统命令-->', InputCmd)
+    ret = os.system(InputCmd)  # 打包后运行普通版本有窗口
+    mylog("CMD 线程退出码：", ret)
+    # subprocess.run(InputCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", timeout=1)  打包后不带控制台的午饭运行
+
 #  @ 功能：分析要做什么
 #  @ 参数：[I] : PicName 图片名字  location 找到的图片位置
 #  @ 备注：PicName用于防止传进来的位置为空的情况进行重找(小概率)
@@ -155,7 +166,7 @@ def Analysis(PicName, location):
         elif NowRowKey[local] == '按键':
             pyautogui.press(str(NowRowValue[local]))
         elif NowRowKey[local] == '滚动':
-            pyautogui.scroll(NowRowValue[local])
+            pyautogui.scroll(int(NowRowValue[local]))
         elif NowRowKey[local] == '截屏':
             if os.path.exists('Screenshot') is not True:
                 os.mkdir('Screenshot')
@@ -170,7 +181,7 @@ def Analysis(PicName, location):
             elif len(Split) == 3:
                 pyautogui.hotkey(Split[0], Split[1], Split[2])
         elif NowRowKey[local] == '命令':
-            os.popen(NowRowValue[local], 'r', 1)
+            threading.Thread(target=threadSysCMD, args=(NowRowValue[local],)).start()
             # subprocess.Popen(NowRowValue[local], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             # return proc.stdout.read().decode()
             # res = os.popen(NowRowValue[local])
@@ -739,7 +750,7 @@ if __name__ == '__main__':
     # EnabelHotKey1 = re.split('/', KeyAndEn)[1]
 
     mylog(' ————————————————————————————————————————————')
-    mylog('|欢迎使用自动化软件！  程序版本V0.8.1')
+    mylog('|欢迎使用自动化软件！  程序版本V0.8.3')
     mylog('|作者: Up主 "极光创客喵"')
     mylog('|鸣谢: Up主"不高兴就喝水"')
     mylog(' ————————————————————————————————————————————\n')
