@@ -227,6 +227,7 @@ def Analysis(PicName, location):
             win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
         else:
             mylog('CMD:', '!! 未知指令', NowRowKey[local])
+            pyautogui.alert(text='CMD: '+NowRowKey[local]+'!! 未知指令', title=MSGWindowName)
         local += 1
         time.sleep(0.01)
 
