@@ -88,6 +88,7 @@ IconPath = r'C:\Windows\TEMP\ATO.ico'
 mutex = threading.Lock()
 ClassWindow = 'TkTopLevel'
 WindowName = 'PyRPA'
+MSGWindowName = 'AutoWorkMessage'
 running = -1  # 1为运行 0 为停止 停止时判断越密集 退出越及时
 
 
@@ -214,7 +215,7 @@ def Analysis(PicName, location):
             pyautogui.dragRel(xOffset=int(Split[0]), yOffset=int(Split[1]), duration=0.11, button='left',
                               mouseDownUp=True)
         elif NowRowKey[local] == '弹窗':
-            pyautogui.alert(text=NowRowValue[local], title='AutoWorkMessage')
+            pyautogui.alert(text=NowRowValue[local], title=MSGWindowName)
             # tkinter.messagebox.showinfo(title='PyRPA: ', message=str(NowRowValue[local]))
         elif NowRowKey[local] == '左键按下':
             win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
@@ -256,7 +257,7 @@ def FindPicAndClick(PicName, timeout, outmethod, interval):
                     mylog(ImgPath, 'waiting timeout !!!!')
                     mylog('outmethod=' + outmethod)
                     if outmethod == '弹窗':  # pyautogui.alert和通知有冲突 通知后无法弹窗
-                        pyautogui.alert(text=ImgPath + '查找超时', title='AutoWorkMessage')
+                        pyautogui.alert(text=ImgPath + '查找超时', title=MSGWindowName)
                         # tkinter.messagebox.showinfo(title='PyRPA: ', message=str(ImgPath + '查找超时'), icon='error')
                         return outmethod
                     else:
@@ -276,7 +277,7 @@ def FindPicAndClick(PicName, timeout, outmethod, interval):
         Analysis('None', None)
     else:
         mylog(ImgPath, '！！图片无效，无法继续运行')
-        pyautogui.alert(text=ImgPath+' ！！图片无效，无法继续运行', title='AutoWorkMessage')
+        pyautogui.alert(text=ImgPath+' ！！图片无效，无法继续运行', title=MSGWindowName)
 
 
 #  @ 功能：日志记录 调试时可以选择输出控制台
@@ -315,7 +316,7 @@ def DataCheck(sheet):
     def ShowErroInfo():
         mylog('！第 ' + str(nowrow + 1) + ' 行 ' + LineValue[line] + ' 列 数据有问题，程序无法继续运行')
         pyautogui.alert(text='！第 ' + str(nowrow + 1) + ' 行 ' + LineValue[line] + ' 列 数据有问题，程序无法继续运行',
-                        title='AutoWorkMessage')
+                        title=MSGWindowName)
         exit(-1)
 
     def ActionCheck(nowrow):
@@ -329,7 +330,7 @@ def DataCheck(sheet):
             return True
         else:
             mylog('！第 ' + str(nowrow + 1), '行 动作队列异常')
-            pyautogui.alert(text='！第 ' + str(nowrow + 1) + ' 行 ' + LineValue[line] + ' 列动作队列有问题，程序无法继续运行', title='AutoWorkMessage')
+            pyautogui.alert(text='！第 ' + str(nowrow + 1) + ' 行 ' + LineValue[line] + ' 列动作队列有问题，程序无法继续运行', title=MSGWindowName)
             return False
 
     for nowrow in range(1, sheet.nrows):
@@ -487,6 +488,7 @@ def finished_working():
     mutex.acquire()
     running = 0
     mutex.release()
+    WindowCtrl(None, MSGWindowName, -1)
 
 
 StatusText = ''
@@ -539,9 +541,7 @@ def ThreadShowLabelWindow():
 
 TotalTaskList = ['']  # 任务列表
 
-# def CloseWindowEvent():
-#     mylog("用户关闭主窗口")
-#     WindowCtrl(ClassWindow, WindowName, -1)
+
 ETLoop = None
 ETStart = None
 ETStop = None
@@ -613,13 +613,13 @@ def ThreadShowUIAndManageEvent():
 
         if '.xls' not in FilesList:
             mylog('！路径' + WorkPath + ' 下可能没有任务表，程序无法继续运行，\n请添加表格或者删除任务文件夹')
-            pyautogui.alert(text='！路径' + WorkPath + ' 下可能没有任务表，程序无法继续运行，\n请添加表格或者删除任务文件夹', title='AutoWorkMessage')
+            pyautogui.alert(text='！路径' + WorkPath + ' 下可能没有任务表，程序无法继续运行，\n请添加表格或者删除任务文件夹', title=MSGWindowName)
             # tkinter.messagebox.showinfo(title='PyRPA: ', message='！路径' + WorkPath + '下可能没有任务表，程序无法继续运行，\n请添加表格或者删除任务文件夹', icon='error')
             KillSelf()
         NowDirXlsPath = glob2.glob(WorkPath + '\\*.xls')[0]  # 弱水三千只取一瓢饮
         if os.path.exists(NowDirXlsPath) is not True:
             mylog('！' + NowDirXlsPath + ' 不存在，程序无法继续运行')
-            pyautogui.alert(text='！' + NowDirXlsPath + ' 不存在，程序无法继续运行', title='AutoWorkMessage')
+            pyautogui.alert(text='！' + NowDirXlsPath + ' 不存在，程序无法继续运行', title=MSGWindowName)
             # tkinter.messagebox.showinfo(title='PyRPA: ', message='！' + NowDirXlsPath + '不存在，程序无法继续运行', icon='error')
             KillSelf()
         else:
@@ -803,7 +803,7 @@ def Initial():
     #     os.remove(log_file)
     if os.path.exists('Source') is not True:
         mylog('! Source文件夹不存在，程序无法继续运行')
-        # pyautogui.alert(text='Source文件夹不存在，程序无法继续运行', title='AutoWorkMessage')
+        # pyautogui.alert(text='Source文件夹不存在，程序无法继续运行', title=MSGWindowName)
         tkinter.messagebox.showinfo(title='PyRPA: ', message='Source文件夹不存在，程序无法继续运行', icon='error')
     else:
         TotalTaskList = getDirList('Source')
