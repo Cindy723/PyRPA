@@ -5,6 +5,7 @@ import datetime as dt
 import re
 import sys
 import time
+import win32api
 import xlrd
 import os
 import keyboard
@@ -25,7 +26,6 @@ import base64
 import ctypes
 import win32console
 import win32ui
-
 '''
 同样的，先安装python环境
 https://www.python.org/ftp/python/3.10.1/python-3.10.1-amd64.exe
@@ -114,46 +114,50 @@ def threadSysCMD(InputCmd):
 #  @ 备注：PicName用于防止传进来的位置为空的情况进行重找(小概率)
 #         重新找3次 moveTo读不到位置会崩溃
 def Analysis(PicName, location):
-    def Filter():
+    def ClickFilter():
         if PicName == 'None':
             mylog('当前模式不支持立即点击,或在Excel中输入图片名')
             return False
         else:
+            pyautogui.moveTo(location.x, location.y, 0)
             return True
 
     mylog('-----> Analysis NowRowKey:', NowRowKey)
     mylog('-----> Analysis NowRowValue:', NowRowValue)
     local = 0
-    if running == 1:
-        if Filter():
-            if location is not None and running == 1:
-                mylog('位置非空，立即移动鼠标到图片中心点')
-                pyautogui.moveTo(location.x, location.y, 0)
-            else:
-                mylog('！找到图后立即移动鼠标开启，但位置为空，重新查找')
-                for Counter in range(0, 3):
-                    location = pyautogui.locateCenterOnScreen(PicName, confidence=0.9)
-                    if location is None and running == 1:
-                        mylog('重找次数', Counter + 1, '/3')
-                    else:
-                        mylog('重找成功')
-                        pyautogui.moveTo(location.x, location.y, 0)
+    # if running == 1:
+        # if Filter():
+        #     if location is not None and running == 1:
+        #         mylog('位置非空，立即移动鼠标到图片中心点')
+        #         pyautogui.moveTo(location.x, location.y, 0)
+        #     else:
+        #         mylog('！找到图后立即移动鼠标开启，但位置为空，重新查找')
+        #         for Counter in range(0, 3):
+        #             location = pyautogui.locateCenterOnScreen(PicName, confidence=0.9)
+        #             if location is None and running == 1:
+        #                 mylog('重找次数', Counter + 1, '/3')
+        #             else:
+        #                 mylog('重找成功')
+        #                 pyautogui.moveTo(location.x, location.y, 0)
 
     while local < Key_Value_pair and running == 1:
         mylog('CMD:', NowRowKey[local], 'Value:', NowRowValue[local])
         if NowRowKey[local] == '左键':
             # pyautogui.click(location.x + OffsetX, location.y + OffsetY, clicks=int(NowRowValue[local]), interval=0,
             # duration=0, button='left')
-            for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
-                mylog("左键点击")
-                pyautogui.leftClick()
+            if ClickFilter() is True:
+                for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
+                    mylog("左键点击")
+                    pyautogui.leftClick()
 
         elif NowRowKey[local] == '右键':
             # pyautogui.click(location.x, location.y, clicks=int(NowRowValue[local]), interval=0, duration=0,
             # button='right')
-            for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
-                mylog("右键点击")
-                pyautogui.rightClick()
+            if ClickFilter() is True:
+                for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
+                    mylog("右键点击")
+                    pyautogui.rightClick()
+
         elif NowRowKey[local] == '等待':
             time.sleep(float(NowRowValue[local]))
         elif NowRowKey[local] == '输入':
@@ -200,7 +204,7 @@ def Analysis(PicName, location):
             Split = re.split('/', NowRowValue[local])
             mylog('鼠标相对移动', Split)
             pyautogui.moveRel(xOffset=int(Split[0]), yOffset=int(Split[1]), tween=pyautogui.linear)
-        elif NowRowKey[local] == '鼠标拖拽' and Filter():
+        elif NowRowKey[local] == '鼠标拖拽' and ClickFilter():
             Split = re.split('/', NowRowValue[local])
             mylog('鼠标拖拽', Split)
             pyautogui.dragTo(x=int(Split[0]), y=int(Split[1]), duration=3, button='left')
@@ -212,12 +216,18 @@ def Analysis(PicName, location):
         elif NowRowKey[local] == '弹窗':
             pyautogui.alert(text=NowRowValue[local], title='AutoWorkMessage')
             # tkinter.messagebox.showinfo(title='PyRPA: ', message=str(NowRowValue[local]))
+        elif NowRowKey[local] == '左键按下':
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        elif NowRowKey[local] == '左键释放':
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        elif NowRowKey[local] == '右键按下':
+            win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
+        elif NowRowKey[local] == '右键释放':
+            win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
         else:
             mylog('CMD:', '!! 未知指令', NowRowKey[local])
         local += 1
         time.sleep(0.01)
-    NowRowKey.clear()
-    NowRowValue.clear()
 
 
 #  @ 功能：找图并执行动作
@@ -425,6 +435,8 @@ def workspace(sheet):
                                   timeout=sheet.row(R)[3].value,
                                   outmethod=sheet.row(R)[4].value,
                                   interval=sheet.row(R)[5].value)
+            NowRowKey.clear()
+            NowRowValue.clear()
             if ret == '退出':
                 mylog('查找超时,退出整个查找')
                 return ret
@@ -539,6 +551,7 @@ StopKey = ''
 ListCfg = ['loopcounter', 'starthotkey', 'stophotkey']  # 下拉栏是独立的
 XlsSource = None
 WorkPath = ''
+
 
 def KillSelf():
     # subprocess.Popen("taskkill /f /t /im PyRPA.exe", stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -804,7 +817,7 @@ if __name__ == '__main__':
     threading.Thread(target=ThreadShowLabelWindow).start()
     threading.Thread(target=ThreadShowUIAndManageEvent).start()
     mylog(' ————————————————————————————————————————————')
-    mylog('|欢迎使用自动化软件！  <程序版本V0.8.4>')
+    mylog('|欢迎使用自动化软件！  <程序版本V0.8.5>')
     mylog('|作者: Up主 "极光创客喵" chundong_cindy@163.com')
     mylog('|鸣谢: Up主"不高兴就喝水"')
     mylog(' ————————————————————————————————————————————\n')
@@ -820,7 +833,7 @@ if __name__ == '__main__':
             time.sleep(0.1)
             RunCounter = int(LpCounter)
             StatusText = '准备'
-        time.sleep(0.5)
+
         if RunCounter == -1:
             mylog('进入一直循环')
             while running == 1:
