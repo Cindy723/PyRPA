@@ -456,25 +456,22 @@ def WindowCtrl(wClassName, wCaption, action):
     hwnd = win32gui.FindWindow(wClassName, wCaption)
     if hwnd != 0:
         if action == -1:  # 暂不使用
-            mylog('执行窗口摧毁')
+            # mylog('执行窗口摧毁')
             win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
         elif action == 0:
             if win32gui.IsIconic(hwnd) is not True:
-                mylog('执行窗口最小化')
+                # mylog('执行窗口最小化')
                 win32gui.ShowWindow(hwnd, win32con.SW_SHOWMINIMIZED)
         # elif action == 1:
         #     if win32gui.IsIconic(hwnd):
         #         mylog('执行窗口还原')
         #         win32gui.ShowWindow(hwnd, win32con.SW_SHOWNORMAL)
 
-    else:
-        mylog('！指定窗口句柄没找到')
-
 
 #  @ 功能：开始热键绑定的事件
 def begin_working():
     global running
-    mylog('热键按下 ：begin_working')
+    # mylog('热键按下 ：begin_working')
     WindowCtrl(ClassWindow, WindowName, 0)
     mutex.acquire()
     running = 1
@@ -484,7 +481,7 @@ def begin_working():
 #  @ 功能：结束热键绑定的事件
 def finished_working():
     global running
-    mylog('热键按下 ：finished_working')
+    # mylog('热键按下 ：finished_working')
     WindowCtrl(ClassWindow, WindowName, 1)
     mutex.acquire()
     running = 0
@@ -706,6 +703,7 @@ def ThreadShowUIAndManageEvent():
     mylog('恢复上次设置的开始热键，', StartKey)
     ETStart.insert("insert", StartKey)
     mylog('恢复上次设置的停止热键，', StopKey)
+    mylog('-等待用户操作-')
     ETStop.insert("insert", StopKey)
     keyboard.add_hotkey(StartKey, begin_working)
     keyboard.add_hotkey(StopKey, finished_working)
@@ -834,7 +832,7 @@ if __name__ == '__main__':
             time.sleep(0.1)
             RunCounter = int(LpCounter)
             StatusText = '准备'
-
+        time.sleep(0.5)     # 等待窗口退出
         if RunCounter == -1:
             mylog('进入一直循环')
             while running == 1:
@@ -845,7 +843,7 @@ if __name__ == '__main__':
             totalCounter = RunCounter
             while RunCounter > 0 and running == 1:
                 numCounter += 1
-                mylog('运行', numCounter, '/', totalCounter, '次 ↓')
+                mylog('\n【运行', numCounter, '/', totalCounter, '次 ↓】')
                 if workspace(XlsSource) == '退出':
                     break
                 RunCounter -= 1
