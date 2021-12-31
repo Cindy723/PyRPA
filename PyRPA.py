@@ -26,13 +26,13 @@ import base64
 import ctypes
 import win32console
 import win32ui
+
 '''
 同样的，先安装python环境
 https://www.python.org/ftp/python/3.10.1/python-3.10.1-amd64.exe
 如果失效 点击这里 https://www.python.org/downloads/release/
 我这里安装的3.10版本，cv2是用的pyhon3.9下的(3.10貌似不行)为了提升编程体验，建议使用pycharm并且使用虚拟环境  https://download.jetbrains.com.cn/python/pycharm-community-2021.3.exe
 如果失效 点击这里 https://www.jetbrains.com/pycharm/ (选择Community版本已经足够使用)
-
 用到了以下外部依赖包： 
 pyautogui  opencv-python  pillow  pyperclip  xlrd   pywin32   glob2  keyboard
 如果还提示缺少其它库 安装即可
@@ -47,7 +47,6 @@ pyautogui.click(x,y,clicks ,interval=0.05,duration=0.01,button="left")
 location = pyautogui.locateOnScreen("1.png")
 x, y = pyautogui.center(location)
 pyautogui.leftClick(x, y)
-
 pyautogui.locateCenterOnScreen 返回中心点 location.x  location.y
 pyautogui.locateOnScreen  返回顶点 location.top  location.left
 ....
@@ -58,7 +57,6 @@ https://summer.blog.csdn.net/article/details/84650938
 '''
 hwnd = win32gui.FindWindow(lpClassName=None, lpWindowName=None)  # 查找窗口，不找子窗口，返回值为0表示未找到窗口
 hwnd = win32gui.FindWindowEx(hwndParent=0, hwndChildAfter=0, lpszClass=None, lpszWindow=None)  # 查找子窗口，返回值为0表示未找到子窗口
-
 win32gui.ShowWindow(hwnd, win32con.SW_SHOWNORMAL)
 SW_HIDE：隐藏窗口并激活其他窗口。nCmdShow=0。
 SW_SHOWNORMAL：激活并显示一个窗口。如果窗口被最小化或最大化，系统将其恢复到原来的尺寸和大小。应用程序在第一次显示窗口的时候应该指定此标志。nCmdShow=1。
@@ -90,6 +88,7 @@ ClassWindow = 'TkTopLevel'
 WindowName = 'PyRPA'
 MSGWindowName = 'AutoWorkMessage'
 running = -1  # 1为运行 0 为停止 停止时判断越密集 退出越及时
+offsetting = False  # 当前是否使用偏移
 
 
 def resource_path(relative_path):
@@ -115,6 +114,8 @@ def threadSysCMD(InputCmd):
 #  @ 备注：PicName用于防止传进来的位置为空的情况进行重找(小概率)
 #         重新找3次 moveTo读不到位置会崩溃
 def Analysis(PicName, location):
+    global offsetting
+
     def ClickFilter():
         if PicName == 'None':
             mylog('当前模式不支持立即点击,或在Excel中输入图片名')
@@ -127,35 +128,45 @@ def Analysis(PicName, location):
     mylog('-----> Analysis NowRowValue:', NowRowValue)
     local = 0
     # if running == 1:
-        # if Filter():
-        #     if location is not None and running == 1:
-        #         mylog('位置非空，立即移动鼠标到图片中心点')
-        #         pyautogui.moveTo(location.x, location.y, 0)
-        #     else:
-        #         mylog('！找到图后立即移动鼠标开启，但位置为空，重新查找')
-        #         for Counter in range(0, 3):
-        #             location = pyautogui.locateCenterOnScreen(PicName, confidence=0.9)
-        #             if location is None and running == 1:
-        #                 mylog('重找次数', Counter + 1, '/3')
-        #             else:
-        #                 mylog('重找成功')
-        #                 pyautogui.moveTo(location.x, location.y, 0)
+    # if Filter():
+    #     if location is not None and running == 1:
+    #         mylog('位置非空，立即移动鼠标到图片中心点')
+    #         pyautogui.moveTo(location.x, location.y, 0)
+    #     else:
+    #         mylog('！找到图后立即移动鼠标开启，但位置为空，重新查找')
+    #         for Counter in range(0, 3):
+    #             location = pyautogui.locateCenterOnScreen(PicName, confidence=0.9)
+    #             if location is None and running == 1:
+    #                 mylog('重找次数', Counter + 1, '/3')
+    #             else:
+    #                 mylog('重找成功')
+    #                 pyautogui.moveTo(location.x, location.y, 0)
 
     while local < Key_Value_pair and running == 1:
         mylog('CMD:', NowRowKey[local], 'Value:', NowRowValue[local])
         if NowRowKey[local] == '左键':
             # pyautogui.click(location.x + OffsetX, location.y + OffsetY, clicks=int(NowRowValue[local]), interval=0,
             # duration=0, button='left')
-            if ClickFilter() is True:
+            if offsetting is True:
+                offsetting = False
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
+                    mylog("左键点击")
+                    pyautogui.leftClick()
+            elif ClickFilter() is True:
+                for i in range(0, int(NowRowValue[local])):
                     mylog("左键点击")
                     pyautogui.leftClick()
 
         elif NowRowKey[local] == '右键':
             # pyautogui.click(location.x, location.y, clicks=int(NowRowValue[local]), interval=0, duration=0,
             # button='right')
-            if ClickFilter() is True:
+            if offsetting is True:
+                offsetting = False
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
+                    mylog("右键点击")
+                    pyautogui.rightClick()
+            elif ClickFilter() is True:
+                for i in range(0, int(NowRowValue[local])):
                     mylog("右键点击")
                     pyautogui.rightClick()
 
@@ -201,11 +212,12 @@ def Analysis(PicName, location):
             Split = re.split('/', NowRowValue[local])
             mylog('移动鼠标到', Split)
             pyautogui.moveTo(int(Split[0]), int(Split[1]), 0)
-        elif NowRowKey[local] == '偏移':  # 相对位移 +X向右 +Y向下  负值相反
+        elif NowRowKey[local] == '偏移' and ClickFilter():  # 相对位移 +X向右 +Y向下  负值相反
+            offsetting = True
             Split = re.split('/', NowRowValue[local])
             mylog('鼠标相对移动', Split)
             pyautogui.moveRel(xOffset=int(Split[0]), yOffset=int(Split[1]), tween=pyautogui.linear)
-        elif NowRowKey[local] == '鼠标拖拽' and ClickFilter():
+        elif NowRowKey[local] == '鼠标拖拽' and ClickFilter():  # 状态栏大多数情况不需要偏移拖拽
             Split = re.split('/', NowRowValue[local])
             mylog('鼠标拖拽', Split)
             pyautogui.dragTo(x=int(Split[0]), y=int(Split[1]), duration=3, button='left')
@@ -218,16 +230,20 @@ def Analysis(PicName, location):
             pyautogui.alert(text=NowRowValue[local], title=MSGWindowName)
             # tkinter.messagebox.showinfo(title='PyRPA: ', message=str(NowRowValue[local]))
         elif NowRowKey[local] == '左键按下':
+            if offsetting is True:
+                offsetting = False
             win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         elif NowRowKey[local] == '左键释放':
             win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
         elif NowRowKey[local] == '右键按下':
+            if offsetting is True:
+                offsetting = False
             win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
         elif NowRowKey[local] == '右键释放':
             win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
         else:
             mylog('CMD:', '!! 未知指令', NowRowKey[local])
-            pyautogui.alert(text='CMD: '+NowRowKey[local]+'!! 未知指令', title=MSGWindowName)
+            pyautogui.alert(text='CMD: ' + NowRowKey[local] + '!! 未知指令', title=MSGWindowName)
         local += 1
         time.sleep(0.01)
 
@@ -236,7 +252,6 @@ def Analysis(PicName, location):
 #  @ 参数：[I] :PicName 图片名字 timeout没找到循环找图的超时时间  interval下次找图的时间间隔
 #  @ 备注：timeout 为0表示只找一次
 def FindPicAndClick(PicName, timeout, outmethod, interval):
-    location = 0
     ImgPath = (WorkPath + '\\' + PicName)
     if PicName != '' and os.path.exists(ImgPath) is True and running == 1:
         mylog(ImgPath, '图片有效')
@@ -247,7 +262,7 @@ def FindPicAndClick(PicName, timeout, outmethod, interval):
             Analysis(ImgPath, location)
         else:
             BeginTime = time.time()
-            while timeout > 0 and location is None and running == 1:
+            while timeout >= 0 and location is None and running == 1:
                 if ViewLog:
                     mylog(ImgPath, 'is not appear,waiting..(timeout > 0)')
                     ViewLog = False
@@ -278,7 +293,7 @@ def FindPicAndClick(PicName, timeout, outmethod, interval):
         Analysis('None', None)
     else:
         mylog(ImgPath, '！！图片无效，无法继续运行')
-        pyautogui.alert(text=ImgPath+' ！！图片无效，无法继续运行', title=MSGWindowName)
+        pyautogui.alert(text=ImgPath + ' ！！图片无效，无法继续运行', title=MSGWindowName)
 
 
 #  @ 功能：日志记录 调试时可以选择输出控制台
@@ -539,7 +554,6 @@ def ThreadShowLabelWindow():
 
 TotalTaskList = ['']  # 任务列表
 
-
 ETLoop = None
 ETStart = None
 ETStop = None
@@ -788,8 +802,8 @@ def Initial():
     for root, dirs, files in os.walk(TempPath):
         if "_MEI" in root and DIR not in root:
             try:
-                    mylog("删除", root)
-                    shutil.rmtree(root)
+                mylog("删除", root)
+                shutil.rmtree(root)
             except:
                 pass
         else:
@@ -821,6 +835,7 @@ if __name__ == '__main__':
     mylog('|鸣谢: Up主"不高兴就喝水"')
     mylog(' ————————————————————————————————————————————\n')
 
+
     def MainWork():
         global StatusText
         global RunCounter
@@ -832,7 +847,7 @@ if __name__ == '__main__':
             time.sleep(0.1)
             RunCounter = int(LpCounter)
             StatusText = '准备'
-        time.sleep(0.5)     # 等待窗口退出
+        time.sleep(0.5)  # 等待窗口退出
         if RunCounter == -1:
             mylog('进入一直循环')
             while running == 1:
@@ -853,6 +868,7 @@ if __name__ == '__main__':
         # if int(config.get('SAVE', 'enablemessage')) == 1:
         #     toaster = ToastNotifier()
         #     toaster.show_toast(u'PyRPA', u'EXCEL遍历结束', icon_path=IconPath)
+
 
     while 1:
         mylog('*********************主循环*********************')
