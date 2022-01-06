@@ -88,7 +88,8 @@ ClassWindow = 'TkTopLevel'
 WindowName = 'PyRPA'
 MSGWindowName = 'AutoWorkMessage'
 running = -1  # 1为运行 0 为停止 停止时判断越密集 退出越及时
-offsetting = False  # 当前是否使用偏移
+offseted = False  # 之前是否使用偏移
+moved = False     # 之前是否使用移动
 
 
 def resource_path(relative_path):
@@ -114,11 +115,12 @@ def threadSysCMD(InputCmd):
 #  @ 备注：PicName用于防止传进来的位置为空的情况进行重找(小概率)
 #         重新找3次 moveTo读不到位置会崩溃
 def Analysis(PicName, location):
-    global offsetting
+    global offseted
+    global moved
 
     def ClickFilter():
         if PicName == 'None':
-            mylog('当前模式不支持立即点击,或在Excel中输入图片名')
+            mylog('当前模式不支持立即点击,或在Excel中输入图片名,亦或是先执行移动或偏移')
             return False
         else:
             pyautogui.moveTo(location.x, location.y, 0)
@@ -147,25 +149,25 @@ def Analysis(PicName, location):
         if NowRowKey[local] == '左键':
             # pyautogui.click(location.x + OffsetX, location.y + OffsetY, clicks=int(NowRowValue[local]), interval=0,
             # duration=0, button='left')
-            if offsetting is True:
-                offsetting = False
+            if offseted is True or moved is True:
+                offseted = moved = False
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
-                    mylog("左键点击")
+                    mylog("右键点击")
                     pyautogui.leftClick()
-            elif ClickFilter() is True:
+            elif ClickFilter() is True:    # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
                 for i in range(0, int(NowRowValue[local])):
-                    mylog("左键点击")
+                    mylog("右键点击")
                     pyautogui.leftClick()
 
         elif NowRowKey[local] == '右键':
             # pyautogui.click(location.x, location.y, clicks=int(NowRowValue[local]), interval=0, duration=0,
             # button='right')
-            if offsetting is True:
-                offsetting = False
+            if offseted is True or moved is True:
+                offseted = moved = False
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
                     mylog("右键点击")
                     pyautogui.rightClick()
-            elif ClickFilter() is True:
+            elif ClickFilter() is True:    # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
                 for i in range(0, int(NowRowValue[local])):
                     mylog("右键点击")
                     pyautogui.rightClick()
@@ -209,11 +211,12 @@ def Analysis(PicName, location):
         elif NowRowKey[local] == '中键':
             pyautogui.middleClick()
         elif NowRowKey[local] == '移动':
+            moved = True
             Split = re.split('/', NowRowValue[local])
             mylog('移动鼠标到', Split)
             pyautogui.moveTo(int(Split[0]), int(Split[1]), 0)
         elif NowRowKey[local] == '偏移' and ClickFilter():  # 相对位移 +X向右 +Y向下  负值相反
-            offsetting = True
+            offseted = True
             Split = re.split('/', NowRowValue[local])
             mylog('鼠标相对移动', Split)
             pyautogui.moveRel(xOffset=int(Split[0]), yOffset=int(Split[1]), tween=pyautogui.linear)
@@ -230,14 +233,14 @@ def Analysis(PicName, location):
             pyautogui.alert(text=NowRowValue[local], title=MSGWindowName)
             # tkinter.messagebox.showinfo(title='PyRPA: ', message=str(NowRowValue[local]))
         elif NowRowKey[local] == '左键按下':
-            if offsetting is True:
-                offsetting = False
+            if offseted is True:
+                offseted = False
             win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         elif NowRowKey[local] == '左键释放':
             win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
         elif NowRowKey[local] == '右键按下':
-            if offsetting is True:
-                offsetting = False
+            if offseted is True:
+                offseted = False
             win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
         elif NowRowKey[local] == '右键释放':
             win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
@@ -570,6 +573,18 @@ def KillSelf():
     #                  stderr=subprocess.PIPE)
     # subprocess.Popen("taskkill /f /t /im PyRPA-c.exe", stdin=subprocess.PIPE, stdout=subprocess.PIPE,
     #                  stderr=subprocess.PIPE)
+    TempPath = os.path.dirname(DIR)
+    mylog("TempPath: ", TempPath)
+    for root, dirs, files in os.walk(TempPath):
+        if "_MEI" in root and DIR not in root:
+            try:
+                mylog("删除", root)
+                shutil.rmtree(root)
+            except:
+                pass
+        else:
+            pass
+
     subprocess.call("taskkill /f /t /im PyRPA.exe")
     subprocess.call("taskkill /f /t /im PyRPA-c.exe")
 
@@ -797,18 +812,7 @@ def Initial():
     LogOutMethod = int(config.get('SAVE', 'logmethod'))
     mylog('Run path:', DIR)
     mylog('Execute File:', sys.argv[0])
-    TempPath = os.path.dirname(DIR)
-    mylog("TempPath: ", TempPath)
-    for root, dirs, files in os.walk(TempPath):
-        if "_MEI" in root and DIR not in root:
-            try:
-                mylog("删除", root)
-                shutil.rmtree(root)
-            except:
-                pass
-        else:
-            pass
-
+    # 删除上次的运行文件放到程序关闭时  但-c版本需要关闭窗口才能删除文件 关闭控制台时文件将不会被清除 但下次正常关闭时可以删除之前运行的所有垃圾
     StatusText = '启动'
     if os.path.exists(IconPath) is not True:
         WriteIcon()
@@ -830,7 +834,7 @@ if __name__ == '__main__':
     threading.Thread(target=ThreadShowLabelWindow).start()
     threading.Thread(target=ThreadShowUIAndManageEvent).start()
     mylog(' ————————————————————————————————————————————')
-    mylog('|欢迎使用自动化软件！  <程序版本V0.8.5>')
+    mylog('|欢迎使用自动化软件！  <程序版本V0.8.5.3>')
     mylog('|作者: Up主 "极光创客喵" chundong_cindy@163.com')
     mylog('|鸣谢: Up主"不高兴就喝水"')
     mylog(' ————————————————————————————————————————————\n')
