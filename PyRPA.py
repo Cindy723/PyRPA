@@ -26,6 +26,8 @@ import base64
 import ctypes
 import win32console
 import win32ui
+from playsound import playsound
+
 
 '''
 同样的，先安装python环境
@@ -34,7 +36,7 @@ https://www.python.org/ftp/python/3.10.1/python-3.10.1-amd64.exe
 我这里安装的3.10版本，cv2是用的pyhon3.9下的(3.10貌似不行)为了提升编程体验，建议使用pycharm并且使用虚拟环境  https://download.jetbrains.com.cn/python/pycharm-community-2021.3.exe
 如果失效 点击这里 https://www.jetbrains.com/pycharm/ (选择Community版本已经足够使用)
 用到了以下外部依赖包： 
-pyautogui  opencv-python  pillow  pyperclip  xlrd   pywin32   glob2  keyboard
+pyautogui  opencv-python  pillow  pyperclip  xlrd   pywin32   glob2  keyboard playsound
 如果还提示缺少其它库 安装即可
 建议使用虚拟环境 打包也在虚拟环境进行 这样不用在系统里也装一遍库
 '''
@@ -89,7 +91,8 @@ WindowName = 'PyRPA'
 MSGWindowName = 'AutoWorkMessage'
 running = -1  # 1为运行 0 为停止 停止时判断越密集 退出越及时
 offseted = False  # 之前是否使用偏移
-moved = False     # 之前是否使用移动
+moved = False  # 之前是否使用移动
+JumpLine = -1  # 行跳转标识  可实现某些行间的循环 跳转后继续顺序执行
 
 
 def resource_path(relative_path):
@@ -117,6 +120,7 @@ def threadSysCMD(InputCmd):
 def Analysis(PicName, location):
     global offseted
     global moved
+    global JumpLine
 
     def ClickFilter():
         if PicName == 'None':
@@ -154,7 +158,7 @@ def Analysis(PicName, location):
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
                     mylog("右键点击")
                     pyautogui.leftClick()
-            elif ClickFilter() is True:    # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
+            elif ClickFilter() is True:  # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
                 for i in range(0, int(NowRowValue[local])):
                     mylog("右键点击")
                     pyautogui.leftClick()
@@ -167,12 +171,12 @@ def Analysis(PicName, location):
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
                     mylog("右键点击")
                     pyautogui.rightClick()
-            elif ClickFilter() is True:    # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
+            elif ClickFilter() is True:  # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
                 for i in range(0, int(NowRowValue[local])):
                     mylog("右键点击")
                     pyautogui.rightClick()
 
-        elif NowRowKey[local] == '等待':
+        elif NowRowKey[local] == '等待' or NowRowKey[local] == '延时':
             time.sleep(float(NowRowValue[local]))
         elif NowRowKey[local] == '输入':
             strtemp = pyperclip.paste()
@@ -229,7 +233,7 @@ def Analysis(PicName, location):
             mylog('相对拖拽', Split)
             pyautogui.dragRel(xOffset=int(Split[0]), yOffset=int(Split[1]), duration=0.11, button='left',
                               mouseDownUp=True)
-        elif NowRowKey[local] == '弹窗':
+        elif NowRowKey[local] == '弹窗' or NowRowKey[local] == '提示':
             pyautogui.alert(text=NowRowValue[local], title=MSGWindowName)
             # tkinter.messagebox.showinfo(title='PyRPA: ', message=str(NowRowValue[local]))
         elif NowRowKey[local] == '左键按下':
@@ -244,6 +248,11 @@ def Analysis(PicName, location):
             win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
         elif NowRowKey[local] == '右键释放':
             win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
+        elif NowRowKey[local] == '跳转':
+            JumpLine = int(NowRowValue[local])
+            break
+        elif NowRowKey[local] == '音频' or NowRowKey[local] == '音乐' or NowRowKey[local] == '播放':
+            playsound(".\\Source\\"+NowRowValue[local])
         else:
             mylog('CMD:', '!! 未知指令', NowRowKey[local])
             pyautogui.alert(text='CMD: ' + NowRowKey[local] + '!! 未知指令', title=MSGWindowName)
@@ -274,7 +283,7 @@ def FindPicAndClick(PicName, timeout, outmethod, interval):
                 time.sleep(interval)
                 if time.time() - BeginTime > timeout:
                     mylog(ImgPath, 'waiting timeout !!!!')
-                    mylog('outmethod=' + outmethod)
+                    mylog('超时方法： ' + outmethod)
                     if outmethod == '弹窗':  # pyautogui.alert和通知有冲突 通知后无法弹窗
                         pyautogui.alert(text=ImgPath + '查找超时', title=MSGWindowName)
                         # tkinter.messagebox.showinfo(title='PyRPA: ', message=str(ImgPath + '查找超时'), icon='error')
@@ -325,6 +334,7 @@ Key_Value_pair = 0  # 键值对数
 NowRowKey = []
 NowRowValue = []
 LineValue = ['', 'B', 'C', 'D', 'E', 'F', 'G']
+CurrentROW = 1
 
 
 # @功能：检查数据格式是否符合要求 不符合提示错误的单元格
@@ -370,9 +380,11 @@ def DataCheck(sheet):
                     return False
                 elif line == 4:
                     if int(sheet.row(nowrow)[3].value) != -1:
-                        if not (sheet.row(nowrow)[line].value == '弹窗'
-                                or sheet.row(nowrow)[line].value == '跳过'
-                                or sheet.row(nowrow)[line].value == '退出'):
+                        TempStr = str(sheet.row(nowrow)[line].value)
+                        if not (TempStr == '弹窗'
+                                or TempStr == '跳过'
+                                or TempStr == '退出'
+                                or (TempStr.find("跳转") != -1)):
                             ShowErroInfo()
                             return False
                 if line == 5 and stype != 2:
@@ -382,7 +394,7 @@ def DataCheck(sheet):
                     ShowErroInfo()
                     return False
             else:
-                mylog('该行未启用,不检查')
+                # mylog('不检查非找图模式的行')
                 break
         if ActionCheck(nowrow) is False:  # 数据类型如果检查通过 再检查执行动作队列
             return False
@@ -396,19 +408,21 @@ def workspace(sheet):
     global NowRowValue
     global StatusText
     global Key_Value_pair
+    global JumpLine
+    global CurrentROW
+
     StatusText = '工作'
     if DataCheck(sheet) is True:
         mylog('数据校验通过')
     else:
         return
-    R = 1
-    while R < sheet.nrows and running == 1:
-        # if 1 and running == 1:
-        if sheet.row(R)[1].value == 1:  # 该行是否启用
+    CurrentROW = 1
+    while CurrentROW < sheet.nrows and running == 1:
+        if sheet.row(CurrentROW)[1].value == 1:  # 该行是否启用
             mylog('--------------work start--------------')
-            mylog('EXCEL ROW ', R + 1)
-            SourceStr = sheet.row(R)[6].value
-            # SourceStr = "命令=notepad，等待=1，输入=##你好大叔阿比##，等待=1，输入=##大叔阿比##，按键=space"
+            mylog('EXCEL ROW ', CurrentROW + 1)
+            SourceStr = sheet.row(CurrentROW)[6].value
+            # SourceStr = "命令=notepad，等待=1，输入=##你好##，等待=1，输入=##阿。##，按键=space"
             mylog('EXCEL Str: ', SourceStr)
             # findret = SourceStr.find('输入')
             # if findret != -1:
@@ -451,18 +465,38 @@ def workspace(sheet):
                 Count += 2
                 i += 1
             Key_Value_pair = i
-            ret = FindPicAndClick(PicName=sheet.row(R)[2].value,
-                                  timeout=sheet.row(R)[3].value,
-                                  outmethod=sheet.row(R)[4].value,
-                                  interval=sheet.row(R)[5].value)
+            ret = str(FindPicAndClick(PicName=sheet.row(CurrentROW)[2].value,
+                                      timeout=sheet.row(CurrentROW)[3].value,
+                                      outmethod=sheet.row(CurrentROW)[4].value,
+                                      interval=sheet.row(CurrentROW)[5].value))
+            mylog("FindPicAndClick ret=", ret)
             NowRowKey.clear()
             NowRowValue.clear()
             if ret == '退出':
                 mylog('查找超时,退出整个查找')
                 return ret
+
+            if ret.find("跳转") != -1:
+                Templist = re.split('=', ret)
+                if len(Templist) > 0:
+                    CurrentROW = int(Templist[1]) - 2  # 针对程序
+                    mylog("由超时行为触发的跳转到第 ", int(Templist[1]), "行")  # 针对用户
+                    if CurrentROW > sheet.nrows or CurrentROW < 0:
+                        mylog("！请检查跳转参数")
+                        pyautogui.alert(text='！请检查跳转参数', title=MSGWindowName)
+                        return -1
         else:
-            mylog(sheet.row(R)[2].value, '未启用操作')
-        R += 1
+            mylog("EXCEL ROW", CurrentROW+1, '未启用操作')
+
+        if JumpLine != -1:
+            mylog("由动作触发的跳转到第 ", JumpLine, "行")
+            CurrentROW = int(JumpLine)-2
+            JumpLine = -1
+            if CurrentROW > sheet.nrows or CurrentROW < 0:
+                mylog("！请检查跳转参数")
+                pyautogui.alert(text='！请检查跳转参数', title=MSGWindowName)
+                return -1
+        CurrentROW += 1
     mylog('works end')
 
 
@@ -834,7 +868,7 @@ if __name__ == '__main__':
     threading.Thread(target=ThreadShowLabelWindow).start()
     threading.Thread(target=ThreadShowUIAndManageEvent).start()
     mylog(' ————————————————————————————————————————————')
-    mylog('|欢迎使用自动化软件！  <程序版本V0.8.5.3>')
+    mylog('|欢迎使用自动化软件！  <程序版本V0.8.6>')
     mylog('|作者: Up主 "极光创客喵" chundong_cindy@163.com')
     mylog('|鸣谢: Up主"不高兴就喝水"')
     mylog(' ————————————————————————————————————————————\n')
@@ -849,9 +883,9 @@ if __name__ == '__main__':
         mylog('等待热键按下,或点击开始')
         while running == -1:
             time.sleep(0.1)
-            RunCounter = int(LpCounter)
             StatusText = '准备'
         time.sleep(0.5)  # 等待窗口退出
+        RunCounter = int(LpCounter)
         if RunCounter == -1:
             mylog('进入一直循环')
             while running == 1:
