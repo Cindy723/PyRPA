@@ -28,7 +28,6 @@ import win32console
 import win32ui
 from playsound import playsound
 
-
 '''
 同样的，先安装python环境
 https://www.python.org/ftp/python/3.10.1/python-3.10.1-amd64.exe
@@ -93,6 +92,7 @@ running = -1  # 1为运行 0 为停止 停止时判断越密集 退出越及时
 offseted = False  # 之前是否使用偏移
 moved = False  # 之前是否使用移动
 JumpLine = -1  # 行跳转标识  可实现某些行间的循环 跳转后继续顺序执行
+theme = 0  # 主题
 
 
 def resource_path(relative_path):
@@ -118,9 +118,7 @@ def threadSysCMD(InputCmd):
 #  @ 备注：PicName用于防止传进来的位置为空的情况进行重找(小概率)
 #         重新找3次 moveTo读不到位置会崩溃
 def Analysis(PicName, location):
-    global offseted
-    global moved
-    global JumpLine
+    global offseted, moved, JumpLine
 
     def ClickFilter():
         if PicName == 'None':
@@ -252,9 +250,9 @@ def Analysis(PicName, location):
             JumpLine = int(NowRowValue[local])
             break
         elif NowRowKey[local] == '音频' or NowRowKey[local] == '音乐' or NowRowKey[local] == '播放':
-            playsound(".\\Source\\"+NowRowValue[local])
+            playsound(".\\Source\\" + NowRowValue[local])
         else:
-            mylog('CMD:', '!! 未知指令', NowRowKey[local])
+            mylog('CMD:', NowRowKey[local], '!! 未知指令', NowRowKey[local])
             pyautogui.alert(text='CMD: ' + NowRowKey[local] + '!! 未知指令', title=MSGWindowName)
         local += 1
         time.sleep(0.01)
@@ -404,13 +402,7 @@ def DataCheck(sheet):
 #  @ 功能：主要用于找图前的参数输入
 #  @ 参数：[I] :sheet 表格的sheet
 def workspace(sheet):
-    global NowRowKey
-    global NowRowValue
-    global StatusText
-    global Key_Value_pair
-    global JumpLine
-    global CurrentROW
-
+    global NowRowKey, NowRowValue, StatusText, Key_Value_pair, JumpLine, CurrentROW
     StatusText = '工作'
     if DataCheck(sheet) is True:
         mylog('数据校验通过')
@@ -422,40 +414,10 @@ def workspace(sheet):
             mylog('--------------work start--------------')
             mylog('EXCEL ROW ', CurrentROW + 1)
             SourceStr = sheet.row(CurrentROW)[6].value
-            # SourceStr = "命令=notepad，等待=1，输入=##你好##，等待=1，输入=##阿。##，按键=space"
             mylog('EXCEL Str: ', SourceStr)
-            # findret = SourceStr.find('输入')
-            # if findret != -1:
-            #     mylog("动作包含输入")
-            #     local = re.findall(r"输入=##(.*?)##，", SourceStr)
-            #     if len(local) == 0:
-            #         mylog("输入指令没找到'#%#，'，找'#%#,'")
-            #         local = re.findall(r"输入=##(.*?)##,", SourceStr)
-            #         if len(local) == 0:
-            #             mylog("没有找到输入指令的结尾标志")
-            #     for index, value in enumerate(local):
-            #         print(index, value)
-            #
-            # else:
-            #     mylog("动作不包含输入")
-            #
-            #
-            #
-
-            # while 1:
-            #     time.sleep(1)
             ReplaceStr = SourceStr.replace(',', '，')
             ReplaceStr = ReplaceStr.replace('，', '=')
             Split = re.split('=', ReplaceStr)
-
-            # 取引号之间的内容
-            # def FindSubstr(source_str, start_str, end_str):
-            #     start = source_str.find(start_str)
-            #     if start >= 0:
-            #         start += len(start_str)
-            #         end = source_str.find(end_str, start)
-            #         if end >= 0:
-            #             mylog(source_str[start:end])
 
             i = 0
             Count = 0
@@ -486,11 +448,11 @@ def workspace(sheet):
                         pyautogui.alert(text='！请检查跳转参数', title=MSGWindowName)
                         return -1
         else:
-            mylog("EXCEL ROW", CurrentROW+1, '未启用操作')
+            mylog("EXCEL ROW", CurrentROW + 1, '未启用操作')
 
         if JumpLine != -1:
             mylog("由动作触发的跳转到第 ", JumpLine, "行")
-            CurrentROW = int(JumpLine)-2
+            CurrentROW = int(JumpLine) - 2
             JumpLine = -1
             if CurrentROW > sheet.nrows or CurrentROW < 0:
                 mylog("！请检查跳转参数")
@@ -625,31 +587,27 @@ def KillSelf():
 
 #  @ 功能：显示主界面和处理事件
 def ThreadShowUIAndManageEvent():
-    global TotalTaskList
-    global ETLoop
-    global ETStart
-    global ETStop
-    global LpCounter
-    global StartKey
-    global StopKey
-    global XlsSource
+    global TotalTaskList, g_fg, ETLoop, ETStart, ETStop, LpCounter, StartKey, StopKey, XlsSource, theme
     mylog("ThreadShowUIAndManageEvent")
     Top = tk.Tk()
     Top.title(WindowName)  # 窗口标题
-    Top.geometry("300x230+10+16")
+    Top.tk.call("source", "sun-valley.tcl")  # 加载主题
+    # Top.tk.call("set_theme", "light")
+    # Top.tk.call("set_theme", "dark")
+    Top.geometry("350x295+10+16")
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
     # 调用api获得当前的缩放因子
     ScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)
     # 设置缩放因子
     mylog('当前系统缩放：', ScaleFactor, ' %')
-    # Top.tk.call('tk', 'scaling', ScaleFactor / 85)
+    Top.tk.call('tk', 'scaling', ScaleFactor / 85)
 
     Top.resizable(False, False)  # 固定大小
     Top.iconbitmap(IconPath)
 
     #   ----------数据源下拉菜单----------
-    Combobox_1 = ttk.Combobox(Top, values=TotalTaskList, width=20)  # 创建下拉菜单
-    Combobox_1.grid(padx=110, pady=12)
+    Combobox_1 = ttk.Combobox(Top, values=TotalTaskList, width=24, height=30)  # 创建下拉菜单
+    Combobox_1.grid(padx=140, pady=12)
     # noinspection PyBroadException
     try:
         Option = config.get('SAVE', 'optionselect')
@@ -704,8 +662,8 @@ def ThreadShowUIAndManageEvent():
 
     #   ----------日志设置下拉菜单----------
     LogMethodList = ['不记录日志', '记录在文件', 'Debug']
-    Combobox_2 = ttk.Combobox(Top, values=LogMethodList, width=20)  # 创建下拉菜单
-    Combobox_2.grid(padx=110, pady=0)
+    Combobox_2 = ttk.Combobox(Top, values=LogMethodList, width=24, height=30)  # 创建下拉菜单
+    Combobox_2.grid(padx=140, pady=0)
     Option = config.get('SAVE', 'logmethod')
     if int(Option) < 3:
         mylog('恢复上次日志记录下拉菜单:', LogMethodList[int(Option)])
@@ -727,35 +685,52 @@ def ThreadShowUIAndManageEvent():
     Combobox_2.bind("<<ComboboxSelected>>", LogMethodSelectFunc)
     # ###
 
-    Label_y_base = 52
-    Lab = tk.Label(Top, text="工作数据：", font=("宋体", 11), fg="black")
-    Lab.place(x=20, y=Label_y_base - 36)
-
-    Lab = tk.Label(Top, text="日志记录：", font=("宋体", 11), fg="black")
+    theme = int(config.get("SAVE", 'theme'))
+    if theme == 0:  # 默认白色主题
+        Top.tk.call("set_theme", "light")
+        g_fg = "#000000"
+    elif theme == 1:  # 暗黑
+        Top.tk.call("set_theme", "dark")
+        g_fg = "#E8E8E8"
+    Label_y_base = 16
+    Lab = tk.Label(Top, text="工作数据:", font=("宋体", 14), fg=g_fg)
     Lab.place(x=20, y=Label_y_base)
 
-    Lab = tk.Label(Top, text="循环次数：", font=("宋体", 11), fg="black")
-    Lab.place(x=20, y=Label_y_base + 33 * 1)
-    Lab = tk.Label(Top, text="次", font=("宋体", 11), fg="black")
-    Lab.place(x=165, y=Label_y_base + 33 * 1)
-    Lab = tk.Label(Top, text="(-1为一直循环)", font=("宋体", 9), fg="gray")
-    Lab.place(x=186, y=Label_y_base + 33 * 1 + 2)
+    Lab = tk.Label(Top, text="日志记录:", font=("宋体", 14), fg=g_fg)
+    Lab.place(x=20, y=Label_y_base + 46 * 1)
 
-    Lab = tk.Label(Top, text="启动热键：", font=("宋体", 11), fg="black")
-    Lab.place(x=20, y=Label_y_base + 33 * 2)
+    Lab = tk.Label(Top, text="循环次数:", font=("宋体", 14), fg=g_fg)
+    Lab.place(x=20, y=Label_y_base + 46 * 2)
 
-    Lab = tk.Label(Top, text="停止热键：", font=("宋体", 11), fg="black")
-    Lab.place(x=20, y=Label_y_base + 33 * 3)
+    # Lab = tk.Label(Top, text="次", font=("宋体", 13), fg=g_fg)
+    # Lab.place(x=210, y=Label_y_base + 46 * 2)
+    Lab = tk.Label(Top, text="(-1为一直循环)", font=("宋体", 9), fg="#A0A0A0")
+    Lab.place(x=223, y=Label_y_base + 46 * 2 + 8)
 
-    Entry_y_base = 50 + 32
-    ETLoop = Entry(Top, bd=1)
-    ETLoop.place(x=110, y=Entry_y_base, width=50)
+    Lab = tk.Label(Top, text="启动热键:", font=("宋体", 14), fg=g_fg)
+    Lab.place(x=20, y=Label_y_base + 46 * 3)
 
-    ETStart = Entry(Top, bd=1)
-    ETStart.place(x=110, y=Entry_y_base + 32 * 1, width=162)
+    Lab = tk.Label(Top, text="停止热键:", font=("宋体", 14), fg=g_fg)
+    Lab.place(x=20, y=Label_y_base + 46 * 4)
 
-    ETStop = Entry(Top, bd=1)
-    ETStop.place(x=110, y=Entry_y_base + 33 * 2, width=162)
+    Entry_y_base = 105
+    # ETLoop = Entry(Top, bd=1)
+    # ETLoop.place(x=145, y=Entry_y_base, width=50)
+    ETLoop = ttk.Entry(Top)
+    ETLoop.place(x=140, y=Entry_y_base, width=80, height=30)
+
+    # ETStart = Entry(Top, bd=1)
+    # ETStart.place(x=145, y=Entry_y_base + 46 * 1, width=162)
+    ETStart = ttk.Entry(Top)
+    ETStart.place(x=140, y=Entry_y_base + 45 * 1, width=175, height=30)
+
+    # ETStop = Entry(Top, bd=1)
+    # ETStop.place(x=145, y=Entry_y_base + 46 * 2, width=162)
+    ETStop = ttk.Entry(Top)
+    ETStop.place(x=140, y=Entry_y_base + 45 * 2, width=175, height=30)
+
+    # switch = ttk.Checkbutton(Top, text="Switch", style="Switch.TCheckbutton")
+    # switch.place(x=140, y=Entry_y_base + 45 * 2)
 
     # 先拿出之前的配置，启动先前的热键事件检测
     LpCounter = config.get("SAVE", ListCfg[0])
@@ -802,13 +777,20 @@ def ThreadShowUIAndManageEvent():
         mylog('点击开始')
         WindowCtrl(ClassWindow, WindowName, 0)
 
-    butt = tk.Button(Top, text="保存并刷新文件", width=15, height=1, font=("方正姚体", 11), fg='#002020', relief=RIDGE,
-                     command=UpdataCfg)
-    butt.place(x=25, y=190, width=120)
+    # 使用ttk时设置风格
+    # s = ttk.Style()
+    # s.configure('W.TButton', font=('Helvetica', 14))
+    # time.sleep(0.6)
+    # my_style.configure('W.TButton', background='#E0E0E0', font=('方正姚体', 14))
 
-    butt2 = tk.Button(Top, text="点 击 开 始", width=15, height=1, font=("方正姚体", 11), fg='#002020', relief=RIDGE,
-                      command=Bbegin)
-    butt2.place(x=153, y=190, width=120)
+    #  使用tk样式
+    # butt = tk.Button(Top, text="保存并刷新", width=15, height=1, font=("方正姚体", 11), fg="#E8E8E8", relief=RIDGE, command=UpdataCfg)
+    # butt.place(x=25, y=250, width=120)
+    butt = ttk.Button(Top, text="保存并刷新", style='W.TButton', command=UpdataCfg)
+    butt.place(x=20, y=245, width=145)
+
+    butt2 = ttk.Button(Top, text="点击开始", style='W.TButton', command=Bbegin)
+    butt2.place(x=170, y=245, width=145)
 
     Top.protocol("WM_DELETE_WINDOW", KillSelf)
     Top.mainloop()
@@ -837,6 +819,20 @@ def WriteIcon():
     file.close()
 
 
+#  @ 功能：禁用控制台应用的关闭窗口
+#  @ 备注：因为控制台的关闭事件不好捕获，直接禁用掉
+#  @      只允许使用主窗体的关闭来退出程序 在关闭事件中清除临时文件
+#  @ 没有控制台不要使用
+def DisableCloseButton():
+    # pass
+    h = win32console.GetConsoleWindow()
+    if h is not None:
+        wnd = win32ui.CreateWindowFromHandle(h)
+        if wnd is not None:
+            menu = wnd.GetSystemMenu()
+            menu.DeleteMenu(win32con.SC_CLOSE, win32con.MF_BYCOMMAND)
+
+
 #  @ 功能：全局初始化
 def Initial():
     global LogOutMethod
@@ -859,6 +855,7 @@ def Initial():
     else:
         TotalTaskList = getDirList('Source')
         mylog('当前Source文件夹内容(可选任务列表):', TotalTaskList)
+    DisableCloseButton()
 
 
 #  很多警告都是拼写相关 建议关掉这些不必要的警告
@@ -868,7 +865,7 @@ if __name__ == '__main__':
     threading.Thread(target=ThreadShowLabelWindow).start()
     threading.Thread(target=ThreadShowUIAndManageEvent).start()
     mylog(' ————————————————————————————————————————————')
-    mylog('|欢迎使用自动化软件！  <程序版本V0.8.6>')
+    mylog('|欢迎使用自动化软件！  <程序版本V0.9.0>')
     mylog('|作者: Up主 "极光创客喵" chundong_cindy@163.com')
     mylog('|鸣谢: Up主"不高兴就喝水"')
     mylog(' ————————————————————————————————————————————\n')
