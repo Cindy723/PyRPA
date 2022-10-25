@@ -4,7 +4,7 @@ source [file join [file dirname [info script]] theme light.tcl]
 source [file join [file dirname [info script]] theme dark.tcl]
 
 option add *tearOff 0
-
+ 
 proc set_theme {mode} {
 	if {$mode == "dark"} {
 		ttk::style theme use "sun-valley-dark"
