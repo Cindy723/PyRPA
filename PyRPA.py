@@ -833,7 +833,7 @@ def WriteIcon():
     file = open(IconPath, 'wb')
     file.write(img)
     file.close()
-
+ 
 
 #  @ 功能：禁用控制台应用的关闭窗口
 #  @ 备注：因为控制台的关闭事件不好捕获，直接禁用掉
