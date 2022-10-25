@@ -162,7 +162,7 @@ def Analysis(PicName, location):
 
         elif NowRowKey[local] == '右键':
             # pyautogui.click(location.x, location.y, clicks=int(NowRowValue[local]), interval=0, duration=0,
-            # button='right')
+            # button='right') 
             if offseted is True or moved is True:
                 offseted = moved = False
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
