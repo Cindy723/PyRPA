@@ -28,6 +28,8 @@ import win32console
 import win32ui
 from playsound import playsound
 
+'''https://pypi.org/project/PyAutoGUI/'''
+
 '''
 同样的，先安装python环境
 https://www.python.org/ftp/python/3.10.1/python-3.10.1-amd64.exe
@@ -51,7 +53,7 @@ pyautogui.leftClick(x, y)
 pyautogui.locateCenterOnScreen 返回中心点 location.x  location.y
 pyautogui.locateOnScreen  返回顶点 location.top  location.left
 ....
-https://pypi.org/project/PyAutoGUI/
+
 https://summer.blog.csdn.net/article/details/84650938
 '''
 
@@ -121,12 +123,8 @@ def Analysis(PicName, location):
     global offseted, moved, JumpLine
 
     def ClickFilter():
-        if PicName == 'None':
-            mylog('当前模式不支持立即点击,或在Excel中输入图片名,亦或是先执行移动或偏移')
-            return False
-        else:
+        if PicName != 'None':
             pyautogui.moveTo(location.x, location.y, 0)
-            return True
 
     mylog('-----> Analysis NowRowKey:', NowRowKey)
     mylog('-----> Analysis NowRowValue:', NowRowValue)
@@ -156,7 +154,8 @@ def Analysis(PicName, location):
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
                     mylog("右键点击")
                     pyautogui.leftClick()
-            elif ClickFilter() is True:  # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
+            else:
+                ClickFilter()  # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
                 for i in range(0, int(NowRowValue[local])):
                     mylog("右键点击")
                     pyautogui.leftClick()
@@ -169,7 +168,8 @@ def Analysis(PicName, location):
                 for i in range(0, int(NowRowValue[local])):  # 配合相对偏移点击
                     mylog("右键点击")
                     pyautogui.rightClick()
-            elif ClickFilter() is True:  # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
+            else:
+                ClickFilter()  # 偏移和移动都没使用过 在点击前判断图片坐标是否有效 否则盲点无意义
                 for i in range(0, int(NowRowValue[local])):
                     mylog("右键点击")
                     pyautogui.rightClick()
@@ -190,6 +190,14 @@ def Analysis(PicName, location):
             pyautogui.press(str(NowRowValue[local]))
         elif NowRowKey[local] == '滚动':
             pyautogui.scroll(int(NowRowValue[local]))
+        elif NowRowKey[local] == '滑动':
+            ClickFilter()
+            Split = re.split('/', NowRowValue[local])
+            mylog('滑动', Split)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            time.sleep(1)
+            pyautogui.moveRel(xOffset=int(Split[0]), yOffset=int(Split[1]), tween=pyautogui.linear)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
         elif NowRowKey[local] == '截屏':
             if os.path.exists('Screenshot') is not True:
                 os.mkdir('Screenshot')
@@ -217,12 +225,14 @@ def Analysis(PicName, location):
             Split = re.split('/', NowRowValue[local])
             mylog('移动鼠标到', Split)
             pyautogui.moveTo(int(Split[0]), int(Split[1]), 0)
-        elif NowRowKey[local] == '偏移' and ClickFilter():  # 相对位移 +X向右 +Y向下  负值相反
+        elif NowRowKey[local] == '偏移':  # 相对位移 +X向右 +Y向下  负值相反
+            ClickFilter()
             offseted = True
             Split = re.split('/', NowRowValue[local])
             mylog('鼠标相对移动', Split)
             pyautogui.moveRel(xOffset=int(Split[0]), yOffset=int(Split[1]), tween=pyautogui.linear)
-        elif NowRowKey[local] == '鼠标拖拽' and ClickFilter():  # 状态栏大多数情况不需要偏移拖拽
+        elif NowRowKey[local] == '鼠标拖拽':  # 状态栏大多数情况不需要偏移拖拽
+            ClickFilter()
             Split = re.split('/', NowRowValue[local])
             mylog('鼠标拖拽', Split)
             pyautogui.dragTo(x=int(Split[0]), y=int(Split[1]), duration=3, button='left')
@@ -595,19 +605,24 @@ def ThreadShowUIAndManageEvent():
     # Top.tk.call("set_theme", "light")
     # Top.tk.call("set_theme", "dark")
     Top.geometry("350x295+10+16")
+    # Top.resizable(False, False)  # 固定大小
+    Top.minsize(350, 295)  # 最小尺寸
+    Top.maxsize(450, 395)  # 最大尺寸
+    Top.iconbitmap(IconPath)
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
     # 调用api获得当前的缩放因子
     ScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)
     # 设置缩放因子
     mylog('当前系统缩放：', ScaleFactor, ' %')
+    if ScaleFactor > 100:
+        ComboxWidth = 24 - int(24 * (ScaleFactor-100)/100)
+    else:
+        ComboxWidth = 24
     Top.tk.call('tk', 'scaling', ScaleFactor / 85)
-
-    Top.resizable(False, False)  # 固定大小
-    Top.iconbitmap(IconPath)
-
     #   ----------数据源下拉菜单----------
-    Combobox_1 = ttk.Combobox(Top, values=TotalTaskList, width=24, height=30)  # 创建下拉菜单
-    Combobox_1.grid(padx=140, pady=12)
+    Combobox_1 = ttk.Combobox(Top, values=TotalTaskList, width=ComboxWidth, height=30)  # 创建下拉菜单
+    # Combobox_1.grid(padx=140, pady=12)
+    Combobox_1.place(x=140, y=12)
     # noinspection PyBroadException
     try:
         Option = config.get('SAVE', 'optionselect')
@@ -662,8 +677,9 @@ def ThreadShowUIAndManageEvent():
 
     #   ----------日志设置下拉菜单----------
     LogMethodList = ['不记录日志', '记录在文件', 'Debug']
-    Combobox_2 = ttk.Combobox(Top, values=LogMethodList, width=24, height=30)  # 创建下拉菜单
-    Combobox_2.grid(padx=140, pady=0)
+    Combobox_2 = ttk.Combobox(Top, values=LogMethodList, width=ComboxWidth, height=30)  # 创建下拉菜单
+    # Combobox_2.grid(padx=140, pady=0)
+    Combobox_2.place(x=140, y=60)
     Option = config.get('SAVE', 'logmethod')
     if int(Option) < 3:
         mylog('恢复上次日志记录下拉菜单:', LogMethodList[int(Option)])
@@ -831,6 +847,7 @@ def DisableCloseButton():
         if wnd is not None:
             menu = wnd.GetSystemMenu()
             menu.DeleteMenu(win32con.SC_CLOSE, win32con.MF_BYCOMMAND)
+autoruntaskdir = ''
 
 
 #  @ 功能：全局初始化
@@ -838,10 +855,13 @@ def Initial():
     global LogOutMethod
     global StatusText
     global TotalTaskList
+    global autoruntaskdir
 
     LogOutMethod = int(config.get('SAVE', 'logmethod'))
+    autoruntaskdir = str(config.get('TASKCFG', 'autoruntaskdir'))
     mylog('Run path:', DIR)
     mylog('Execute File:', sys.argv[0])
+    mylog('autoruntaskdir: ', autoruntaskdir)
     # 删除上次的运行文件放到程序关闭时  但-c版本需要关闭窗口才能删除文件 关闭控制台时文件将不会被清除 但下次正常关闭时可以删除之前运行的所有垃圾
     StatusText = '启动'
     if os.path.exists(IconPath) is not True:
@@ -865,7 +885,7 @@ if __name__ == '__main__':
     threading.Thread(target=ThreadShowLabelWindow).start()
     threading.Thread(target=ThreadShowUIAndManageEvent).start()
     mylog(' ————————————————————————————————————————————')
-    mylog('|欢迎使用自动化软件！  <程序版本V0.9.0>')
+    mylog('|欢迎使用自动化软件！  <程序版本V0.9.3>')
     mylog('|作者: Up主 "极光创客喵" chundong_cindy@163.com')
     mylog('|鸣谢: Up主"不高兴就喝水"')
     mylog(' ————————————————————————————————————————————\n')
@@ -878,9 +898,18 @@ if __name__ == '__main__':
             keyboard.add_hotkey(StartKey, begin_working)
             keyboard.add_hotkey(StopKey, finished_working)
         mylog('等待热键按下,或点击开始')
+
+        if autoruntaskdir != '':
+            mylog('自动运行模式，运行任务文件夹：', autoruntaskdir)
+            time.sleep(0.5)   # 这个等待非常重要 等待上面操作结束
+            StatusText = '准备'
+            begin_working()
+            time.sleep(0.5)   # 这个等待非常重要 等待上面操作结束
+
         while running == -1:
             time.sleep(0.1)
             StatusText = '准备'
+
         time.sleep(0.5)  # 等待窗口退出
         RunCounter = int(LpCounter)
         if RunCounter == -1:
@@ -898,6 +927,10 @@ if __name__ == '__main__':
                     break
                 RunCounter -= 1
         mylog('EXCEL遍历结束')
+        if autoruntaskdir != '':
+            mylog('自动模式运行结束 杀死自己')  # 调试模式下将不起作用
+            KillSelf()
+
         # WindowCtrl(ClassWindow, WindowName, 1)  中间有弹窗还原将会有问题
         # 不使用还原，结束弹出通知(通知期间无法操作)
         # if int(config.get('SAVE', 'enablemessage')) == 1:
@@ -912,3 +945,4 @@ if __name__ == '__main__':
         running = -1
         mutex.release()
         MainWork()
+
