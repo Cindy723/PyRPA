@@ -28,6 +28,10 @@ import win32console
 import win32ui
 from playsound import playsound
 
+# 识别数字相关依赖
+from Window import FormControl
+from FindNumber import FindNumber
+
 '''https://pypi.org/project/PyAutoGUI/'''
 
 '''
@@ -95,7 +99,6 @@ offseted = False  # 之前是否使用偏移
 moved = False  # 之前是否使用移动
 JumpLine = -1  # 行跳转标识  可实现某些行间的循环 跳转后继续顺序执行
 theme = 0  # 主题
-
 
 def resource_path(relative_path):
     if getattr(sys, 'frozen', False):  # 是否Bundle Resource
@@ -203,6 +206,33 @@ def Analysis(PicName, location):
                 os.mkdir('Screenshot')
             ShotImgpath = 'Screenshot/Shot_' + f'{time.strftime("%m%d%H%M%S ")}.png'
             pyautogui.screenshot().save(ShotImgpath)
+        elif NowRowKey[local] == '截传奇窗口':
+            print('截传奇窗口')
+            if os.path.exists('Screenshot') is not True:
+                os.mkdir('Screenshot')
+            from_control = FormControl()
+            from_control.bindWindowByName('MIRMG(1)')
+            from_control.WindowActive()
+            from_control.bindActiveWindow()
+            from_control.MoveTo(0,0)
+
+            screen_shot_img_path = 'Screenshot/Shot_' + f'{time.strftime("%m%d%H%M%S")}.png'
+            pyautogui.screenshot().save(screen_shot_img_path)
+
+            import cv2
+
+            img = cv2.imread(screen_shot_img_path)
+            cropped = img[350:450, 900:1100]  # 裁剪坐标为[y0:y1, x0:x1]
+            # cropped = img[385:445, 980:1060]  # 裁剪坐标为[y0:y1, x0:x1]
+            # cropped = img[350:380, 1205:1215]  # 裁剪坐标为[y0:y1, x0:x1]
+
+            cv2.imwrite(screen_shot_img_path, cropped)
+            find_number = FindNumber()
+            find_number.get_number_list(screen_shot_img_path)
+            number = find_number.get_number()
+
+            print(number)
+
         elif NowRowKey[local] == '热键':
             ReplaceStr = NowRowValue[local].replace('=', '+')
             ReplaceStr = ReplaceStr.replace('+', '-')

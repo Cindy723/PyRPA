@@ -1,0 +1,9 @@
+.idea
+.vs
+build
+dist
+**__MACOSX
+__pycache__
+Screenshot
+
+PyRPA.exe
